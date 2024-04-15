@@ -1,0 +1,96 @@
+import * as cdk from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
+import { DockerImageCode } from 'aws-cdk-lib/aws-lambda';
+import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import { Construct } from 'constructs';
+// import * as sqs from 'aws-cdk-lib/aws-sqs';
+
+export class CdkStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // Port where the alb accept requests
+    const servicePort = 8000;
+
+    // Import an existing VPC by its name of paligo-vpc
+    // Note that the name of the VPC is the same in all
+    // regions and all accounts (staging, prod)
+    const paligoVpc = ec2.Vpc.fromLookup(this, 'ImportedVPC', {
+      vpcName: 'paligo-vpc'
+    });
+
+    // Application Loadbalancer ARN used for internal services 
+    const loadbalancerInternARN = ssm.StringParameter.valueForStringParameter(this, '/env/alb/intern/arn');
+
+    // Security group that allows incoming traffic to the lb and the service.
+    const loadbalancerSG = new ec2.SecurityGroup(this, 'LoadbalancerSecurityGroup', {
+      vpc: paligoVpc,
+    });
+
+    loadbalancerSG.addIngressRule(
+      ec2.Peer.ipv4(paligoVpc.vpcCidrBlock),
+      ec2.Port.tcp(servicePort)
+    );
+
+    // Get the load balancer. We need to look up the ALB via the
+    // ARN. Tags do not work, unfortunately
+    const alb = ApplicationLoadBalancer.fromApplicationLoadBalancerAttributes(this, 'loadbalancer', {
+      loadBalancerArn: loadbalancerInternARN,
+      vpc: paligoVpc,
+      securityGroupId: loadbalancerSG.securityGroupId
+    });
+
+    // The image - this does not work and is manually deployed
+    const imageUrl = "397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest";
+
+    const repo = Repository.fromRepositoryName(this, imageUrl, "microservice-pdftransformation");
+
+    // Create the lambda function and set timeout to 10 minutes
+    const lambda = new cdk.aws_lambda.DockerImageFunction(this, "microservice-pdf-transformation", {
+      functionName: "microservice-pdf-transformation",
+      code: DockerImageCode.fromEcr(repo),
+      timeout: cdk.Duration.minutes(10),
+    });
+
+    // Outbound bucket. This bucket is used by the pdf transformation service
+    // to deliver files to Paligo - aka outbound files.
+    const outboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/outbound');
+    const inboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/inbound');
+
+    // Import s3 bucket
+
+    // Add env variables for lambda function
+    lambda.addEnvironment("S3_BUCKET_OUTBOUND", outboundBucket);
+    lambda.addEnvironment("S3_BUCKET_INBOUND", inboundBucket);
+
+    // Create a new listener that targets the lambda function
+    const listener = alb.addListener('cdk-listener', { port: servicePort });
+    listener.addTargets('cdk-targets', {
+      targets: [new cdk.aws_elasticloadbalancingv2_targets.LambdaTarget(lambda)],
+      healthCheck: {
+        enabled: true,
+      }
+    });
+
+    // Last step is to add a dns record to the Route53 private zone
+    const privateZone = cdk.aws_route53.HostedZone.fromLookup(this, 'private-zone', {
+      domainName: 'intern',
+      privateZone: true
+    });
+
+    new cdk.aws_route53.CnameRecord(this, 'service-record',  {
+      zone: privateZone,
+      recordName: [this.region, 'pdftransformation'].join('.'),
+      domainName: ssm.StringParameter.valueForStringParameter(this, '/env/alb/intern/dnsname')
+    });
+
+    // Store the entire service url in SSM parameter store
+    new ssm.StringParameter(this, "PdfTransformationEndpoint", {
+      parameterName: "/env/microservice/endpoint/pdftransformation",
+      description: "Complete endpoint for this micro service",
+      stringValue: [this.region, 'pdftransformation', 'intern'].join('.') + ':' + servicePort
+    });
+  }
+}
