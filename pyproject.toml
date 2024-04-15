@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "microservice-pdf-lambda"
+version = "0.1.0"
+description = ""
+authors = ["Henric Johansson <henric.johansson@paligo.net>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+structlog = "^24.1.0"
+pydantic = "^2.5.3"
+pytest = "^7.4.4"
+coverage = "^7.4.1"
+boto3 = "^1.34.34"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.10.1"
+isort = "^5.12.0"
+boto3-stubs = "^1.34.34"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
