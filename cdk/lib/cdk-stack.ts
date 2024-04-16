@@ -5,7 +5,6 @@ import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { DockerImageCode } from 'aws-cdk-lib/aws-lambda';
 import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -80,7 +79,7 @@ export class CdkStack extends cdk.Stack {
       privateZone: true
     });
 
-    new cdk.aws_route53.CnameRecord(this, 'service-record',  {
+    new cdk.aws_route53.CnameRecord(this, 'service-record', {
       zone: privateZone,
       recordName: [this.region, 'pdftransformation'].join('.'),
       domainName: ssm.StringParameter.valueForStringParameter(this, '/env/alb/intern/dnsname')
