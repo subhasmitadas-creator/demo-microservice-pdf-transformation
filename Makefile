@@ -39,8 +39,8 @@ test:
 test-verbose:
 	docker exec -it $(CONTAINER_ID) poetry run pytest ./tests -v --durations=0
 
-request:
-	curl "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"isBase64Encoded": false, "body": {"input": "var/www/html/usr/paligo/media/bd31af7e35f277a64cfa80d636117480/pdf-sample.pdf", "jobs": [{"command": "stamp", "image_file": "var/www/html/usr/paligo/media/29734f0f0299125568b749d66553da31/watermark2.pdf"}]}}'
+request-stamp:
+	curl "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"isBase64Encoded":false,"body":{"input":"sample.pdf", "jobs": [{"command": "stamp", "image_file": "watermark2.pdf"}]}}'
 
 request-pagesize:
 	curl "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"isBase64Encoded":false,"body":{"input":"sample.pdf","jobs":[{"command":"pagesize","nup_booklet":true,"nup_columns":2,"nup_rows":1,"page_width":300,"page_height":300,"nup_frame":false,"nup_delta_x":5,"nup_delta_y":5}]}}'
