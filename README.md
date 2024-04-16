@@ -7,6 +7,23 @@
 
 # Local testing (mocking lambda in AWS)
 
+Install awslambdaric to emulate AWS Lambda
+```bash
+mkdir -p ~/.aws-lambda-rie && \
+    curl -Lo ~/.aws-lambda-rie/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    chmod +x ~/.aws-lambda-rie/aws-lambda-rie
+```
+
+Setup localstack aws profile, add the following to your ~/.aws/config
+```bash
+[profile localstack]
+region = eu-west-1
+output = json
+endpoint_url = http://localhost:4566
+aws_access_key_id = test
+aws_secret_access_key = test
+```
+
 Run the image locally
 
 ```bash
@@ -17,7 +34,7 @@ make run
 
 Make a request locally
 ```bash
-make request
+make request-crop
 ```
 
 After changes you need to restart the container
