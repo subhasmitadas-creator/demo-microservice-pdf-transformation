@@ -66,7 +66,6 @@ stop:
 shell:
 	docker exec -it $(CONTAINER_ID) bash
 
-# This only tags with latest, do we need commit ID as well?
 publish:
 	docker tag $(IMAGE_NAME) 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest
 	docker tag $(IMAGE_NAME) 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:$(version)
