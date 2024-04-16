@@ -1,6 +1,6 @@
 IMAGE_NAME = "microservice-pdf"
 S3_BUCKET = "microservice-pdf"
-VERSION = "1.0.0"
+version = 1.0.0
 
 DOCKER_RUN_CMD = \
 	docker run --platform linux/arm64 -d \
@@ -69,9 +69,9 @@ shell:
 # This only tags with latest, do we need commit ID as well?
 publish:
 	docker tag $(IMAGE_NAME) 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest
+	docker tag $(IMAGE_NAME) 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:$(version)
 	docker push 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest
-	docker tag $(IMAGE_NAME) 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:$(VERSION)
-	docker push 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:$(VERSION)
+	docker push 397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:$(version)
 
 logs:
 	docker logs $(CONTAINER_ID)
