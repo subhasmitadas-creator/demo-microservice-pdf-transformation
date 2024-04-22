@@ -2,7 +2,7 @@
 
 * Install python 3.12 (brew install python@3.12)
 * Install poetry (pip3 install poetry)
-* Using poetry, install dependencies (poetry install)
+* Using poetry, install dependencies (poetry install --no-root)
 * Using poetry, enter the venv (poetry shell)
 
 # Local testing (mocking lambda in AWS)
