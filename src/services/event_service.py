@@ -26,14 +26,16 @@ class EventService:
                 job_service.execute(job)
             except CommandDoesNotExistError as e:
                 self.logger.exception("Command does not exist", exception=e)
-                response.errors.append(f"Command '{job.command}' does not exist")
+                response.add_error(f"Command '{job.command}' does not exist")
+                return response
             except ProcessorError as e:
                 self.logger.exception(
                     "Exception occured while running job", exception=e
                 )
-                response.errors.append(
+                response.add_error(
                     "pdf transformation returned a non empty response, check logs for more information"
                 )
+                return response
 
         return response
 
@@ -49,7 +51,7 @@ class EventService:
 
         if not input_file:
             self.logger.error("Error occured when downloading file, aborting.")
-            response.errors.append(
+            response.add_error(
                 f"Error occured during file download, does the input file exist ({event.input})?"
             )
             return response
@@ -58,7 +60,7 @@ class EventService:
         self.jobs = self.parse_jobs(jobs=event.jobs, input_file=f"/tmp/{input_file}")
 
         if len(self.jobs) < len(event.jobs):
-            response.errors.append(
+            response.add_error(
                 "Failed parsing some jobs, check logs for more information"
             )
             return response
@@ -71,11 +73,12 @@ class EventService:
         )
         if not file_service.upload_file_to_s3(input_file, output_file):
             self.logger.error("Failed uploading file to S3 bucket")
-            response.errors.append("Error occured during file upload")
+            response.add_error("Error occured during file upload")
             return response
 
-        response.message = f"Job(s) completed and {output_file} uploaded to S3."
-        response.output_file = output_file
+        if response.status_code == 200:
+            response.message = f"Job(s) completed and {output_file} uploaded to S3."
+            response.output_file = output_file
 
         return response
 

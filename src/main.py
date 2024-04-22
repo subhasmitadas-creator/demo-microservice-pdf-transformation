@@ -25,7 +25,7 @@ def handler(event, context):
     except ValidationError as e:
         logger.exception("Invalid event", exception=e, lambda_event=event)
         response = ResponseObject()
-        response.errors.append("Event is invalid")
+        response.add_error(error_msg="Event is invalid")
         return response.format_object()
 
     logger.info("Executing event handler", lambda_event=lambda_event)
