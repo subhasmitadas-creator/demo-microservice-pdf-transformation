@@ -5,7 +5,12 @@ from pydantic_core import ValidationError
 from structlog import get_logger
 
 import constants
-from errors.errors import CommandDoesNotExistError, ProcessorError
+from errors.errors import (
+    CommandDoesNotExistError,
+    ProcessorError,
+    S3DownloadFailedError,
+    MicroserviceError,
+)
 from models.jobs import BackgroundJob, CropJob, Job, PagesizeJob, StampJob
 from models.lambda_event import LambdaEvent
 from models.response import ResponseObject
@@ -28,7 +33,7 @@ class EventService:
                 self.logger.exception("Command does not exist", exception=e)
                 response.add_error(f"Command '{job.command}' does not exist")
                 return response
-            except ProcessorError as e:
+            except MicroserviceError as e:
                 self.logger.exception(
                     "Exception occured while running job", exception=e
                 )
@@ -47,9 +52,10 @@ class EventService:
         file_service = FileService()
 
         self.logger.info("Downloading file from S3", file_name=event.input)
-        input_file = file_service.download_file_from_s3(event.input)
 
-        if not input_file:
+        try:
+            input_file = file_service.download_file_from_s3(event.input)
+        except S3DownloadFailedError:
             self.logger.error("Error occured when downloading file, aborting.")
             response.add_error(
                 f"Error occured during file download, does the input file exist ({event.input})?"
