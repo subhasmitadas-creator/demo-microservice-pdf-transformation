@@ -68,8 +68,8 @@ export class CdkStack extends cdk.Stack {
     // Import s3 bucket
 
     // Add env variables for lambda function
-    lambda.addEnvironment("S3_BUCKET_OUTBOUND", outboundBucket);
-    lambda.addEnvironment("S3_BUCKET_INBOUND", inboundBucket);
+    lambda.addEnvironment("S3_DELIVERYBUCKET", outboundBucket);
+    lambda.addEnvironment("S3_PICKUPBUCKET", inboundBucket);
 
     // Create a new listener that targets the lambda function
     const listener = alb.addListener('cdk-listener', { port: servicePort });
