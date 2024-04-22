@@ -2,13 +2,19 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
-import { DockerImageCode } from 'aws-cdk-lib/aws-lambda';
+import { Architecture, DockerImageCode } from 'aws-cdk-lib/aws-lambda';
 import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // tag all resources in this stack
+    cdk.Tags.of(this).add('paligo:repository', 'https://bitbucket.org/expertinfo/microservice-pdf-transformation/src/main/');
+    cdk.Tags.of(this).add('paligo:service:type', 'microservice');
+    cdk.Tags.of(this).add('paligo:service:name', 'pdf-transformation');
+
 
     // Port where the alb accept requests
     const servicePort = 8000;
@@ -51,6 +57,7 @@ export class CdkStack extends cdk.Stack {
       functionName: "microservice-pdf-transformation",
       code: DockerImageCode.fromEcr(repo),
       timeout: cdk.Duration.minutes(10),
+      architecture: Architecture.ARM_64,
     });
 
     // Outbound bucket. This bucket is used by the pdf transformation service
