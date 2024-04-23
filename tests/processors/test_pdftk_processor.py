@@ -11,29 +11,6 @@ from models.jobs import BackgroundJob, StampJob
 from processors.pdftk import PdftkProcessor
 
 
-def test_processor_raises_error_if_files_are_missing():
-    processor = PdftkProcessor()
-
-    with patch.object(
-        processor,
-        "download_watermark",
-    ) as file_service_mock:
-        file_service_mock.return_value = (
-            os.path.dirname(os.path.abspath(__file__)) + "/../assets/non_existing.pdf"
-        )
-
-        with pytest.raises(FileDoesNotExistError):
-            processor.run(
-                StampJob(
-                    command="stamp",
-                    input_file=os.path.dirname(os.path.abspath(__file__))
-                    + "/../assets/input.pdf",
-                    image_file=os.path.dirname(os.path.abspath(__file__))
-                    + "/../assets/non_existing.pdf",
-                )
-            )
-
-
 def test_can_add_stamp():
     shutil.copy2(
         os.path.dirname(os.path.abspath(__file__)) + "/../assets/sample.pdf",
@@ -191,7 +168,8 @@ def test_using_files_that_do_not_exist_raises_an_error():
         "download_watermark",
     ) as file_service_mock:
         file_service_mock.return_value = (
-            os.path.dirname(os.path.abspath(__file__)) + "/../assets/non_existing_file.pdf"
+            os.path.dirname(os.path.abspath(__file__))
+            + "/../assets/non_existing_file.pdf"
         )
         processor.run(
             BackgroundJob(
