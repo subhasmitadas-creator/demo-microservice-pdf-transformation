@@ -9,6 +9,10 @@ ARG FUNCTION_DIR
 # Copy function code
 RUN mkdir -p ${FUNCTION_DIR}
 
+RUN mkdir -p /aws-lambda && curl -Lo /aws-lambda/aws-lambda-rie \
+https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie \
+&& chmod +x /aws-lambda/aws-lambda-rie 
+
 COPY pyproject.toml ${FUNCTION_DIR}
 COPY poetry.lock ${FUNCTION_DIR}
 COPY src ${FUNCTION_DIR}/src
@@ -31,6 +35,7 @@ WORKDIR ${FUNCTION_DIR}
 
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
+COPY --from=build-image /aws-lambda /aws-lambda
 
 RUN pip install poetry==1.7.1
 

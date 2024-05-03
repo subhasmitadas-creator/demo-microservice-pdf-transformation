@@ -4,7 +4,6 @@ version = 1.0.0
 
 DOCKER_RUN_CMD = \
 	docker run --platform linux/arm64 -d \
-	-v ~/.aws-lambda-rie:/aws-lambda \
 	--name microservice.pdftransformation \
 	-p 9000:8080 \
 	-v ${PWD}/src:/function/src:cached \
