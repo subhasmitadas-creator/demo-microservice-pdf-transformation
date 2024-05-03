@@ -1,6 +1,6 @@
 IMAGE_NAME = "microservice-pdf"
 S3_BUCKET = "microservice-pdf"
-version = 1.0.0
+version = 1.0.1
 
 DOCKER_RUN_CMD = \
 	docker run --platform linux/arm64 -d \
