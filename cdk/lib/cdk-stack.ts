@@ -48,14 +48,15 @@ export class CdkStack extends cdk.Stack {
     });
 
     // The image - this does not work and is manually deployed
-    const imageUrl = "397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest";
-
-    const repo = Repository.fromRepositoryName(this, imageUrl, "microservice-pdftransformation");
+    const repo = Repository.fromRepositoryAttributes(this, "serviceRepo", {
+      repositoryName: "microservice-pdftransformation",
+      repositoryArn: "arn:aws:ecr:eu-west-1:397662812780:repository"
+    })
 
     // Create the lambda function and set timeout to 10 minutes
     const lambda = new cdk.aws_lambda.DockerImageFunction(this, "microservice-pdf-transformation", {
       functionName: "microservice-pdf-transformation",
-      code: DockerImageCode.fromEcr(repo),
+      code: DockerImageCode.fromEcr(repo, {tagOrDigest: 'latest'}),
       timeout: cdk.Duration.minutes(10),
       architecture: Architecture.ARM_64,
     });

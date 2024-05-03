@@ -34,5 +34,41 @@
   "hosted-zone:account=397662812780:domainName=intern:privateZone=true:region=eu-west-1": {
     "Id": "/hostedzone/Z0644909WC1JWTIWOO6N",
     "Name": "intern."
+  },
+  "vpc-provider:account=397662812780:filter.tag:Name=paligo-vpc:region=us-east-2:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-001138bd3a48314b1",
+    "vpcCidrBlock": "192.1.0.0/16",
+    "ownerAccountId": "397662812780",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-01becabaf7c538787",
+            "cidr": "192.1.0.0/20",
+            "availabilityZone": "us-east-2a",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          },
+          {
+            "subnetId": "subnet-0d9a79c230f875c8e",
+            "cidr": "192.1.16.0/20",
+            "availabilityZone": "us-east-2b",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          },
+          {
+            "subnetId": "subnet-057f5a622842ecf63",
+            "cidr": "192.1.32.0/20",
+            "availabilityZone": "us-east-2c",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=397662812780:domainName=intern:privateZone=true:region=us-east-2": {
+    "Id": "/hostedzone/Z0644909WC1JWTIWOO6N",
+    "Name": "intern."
   }
 }
