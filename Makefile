@@ -47,6 +47,9 @@ request-pagesize:
 request-crop:
 	curl "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"isBase64Encoded":false,"body":{"input":"sample.pdf","jobs":[{"command":"crop","margins":5,"bounding_box_x":5,"bounding_box_y":5}]}}'
 
+request-playground: 
+	curl http://HenricTestPdfLb-1320450767.eu-north-1.elb.amazonaws.com -H "Accept: application/json"-d '{"test":"test"}'
+
 download:
 	aws --profile localstack s3 cp s3://$(S3_BUCKET)/completed_file.pdf completed_file.pdf
 
