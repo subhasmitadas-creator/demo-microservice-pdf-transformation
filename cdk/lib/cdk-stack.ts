@@ -50,7 +50,7 @@ export class CdkStack extends cdk.Stack {
     // The image - this does not work and is manually deployed
     const repo = Repository.fromRepositoryAttributes(this, "serviceRepo", {
       repositoryName: "microservice-pdftransformation",
-      repositoryArn: "arn:aws:ecr:eu-west-1:397662812780:repository"
+      repositoryArn: `arn:aws:ecr:${this.region}:397662812780:repository`
     })
 
     // Create the lambda function and set timeout to 10 minutes
