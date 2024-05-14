@@ -5,6 +5,7 @@ import tempfile
 import boto3
 from botocore.exceptions import ClientError
 from structlog import get_logger
+from errors.errors import S3DownloadFailedError, S3UploadFailedError
 
 
 class FileService:
@@ -14,11 +15,11 @@ class FileService:
 
     def __init__(self) -> None:
         self.client = boto3.client("s3")
-        self.inbound_bucket = os.getenv("S3_BUCKET_INBOUND")
-        self.outbound_bucket = os.getenv("S3_BUCKET_OUTBOUND")
+        self.inbound_bucket = os.getenv("S3_PICKUPBUCKET")
+        self.outbound_bucket = os.getenv("S3_DELIVERYBUCKET")
         self.logger = get_logger()
 
-    def download_file_from_s3(self, file_name: str) -> bool | str:
+    def download_file_from_s3(self, file_name: str) -> str:
         """Downloads a file from S3 and returns the locally created file name"""
         if not os.path.exists(f"/tmp"):
             os.mkdir(f"/tmp")
@@ -33,7 +34,7 @@ class FileService:
                 file_name=file_name,
                 exception=e,
             )
-            return False
+            raise S3DownloadFailedError
 
         return tmp_file_name
 

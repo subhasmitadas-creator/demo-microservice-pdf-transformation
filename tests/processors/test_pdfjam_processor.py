@@ -15,7 +15,7 @@ def test_processor_raises_error_if_files_are_missing():
     with pytest.raises(ProcessorError):
         processor.run(
             PagesizeJob(
-                command="stamp",
+                command="pagesize",
                 input_file=os.path.dirname(os.path.abspath(__file__))
                 + "/../assets/non_existing.pdf",
                 nup_booklet=True,
@@ -39,7 +39,7 @@ def test_can_set_pagesize():
 
     processor.run(
         PagesizeJob(
-            command="stamp",
+            command="pagesize",
             input_file=os.path.dirname(os.path.abspath(__file__))
             + "/../assets/input.pdf",
             nup_booklet=True,

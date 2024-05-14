@@ -21,3 +21,9 @@ class FileDoesNotExistError(MicroserviceError):
 
 class OutputFileDoesNotExistError(MicroserviceError):
     pass
+
+class S3DownloadFailedError(MicroserviceError):
+    pass
+
+class S3UploadFailedError(MicroserviceError):
+    pass

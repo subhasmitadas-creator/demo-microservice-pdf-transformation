@@ -18,5 +18,9 @@ class ResponseObject:
         """Formats the object for output"""
         return {
             "statusCode": self.status_code,
-            "body": json.dumps({"message": self.message, "errors": self.errors, "output_file": self.output_file}),
+            "body": {"message": self.message, "errors": self.errors, "output_file": self.output_file},
         }
+    
+    def add_error(self, error_msg: str, status_code: int = 500):
+        self.errors.append(error_msg)
+        self.status_code = status_code
