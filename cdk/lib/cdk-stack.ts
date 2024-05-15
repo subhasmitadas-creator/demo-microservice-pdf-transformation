@@ -19,6 +19,12 @@ export class CdkStack extends cdk.Stack {
     // Port where the alb accept requests
     const servicePort = 8000;
 
+    // Image version to use. According to Stackoverflow, it's better to use a specific version,
+    // instead of 'latest'. A specific version makes sure that the Lambda app is re-deployed
+    // once the version changes.
+    // https://stackoverflow.com/questions/65996593/aws-cdk-update-lambda-function-code-when-code-is-referenced-by-ecr-image
+    const imageVersion = '1.0.3'
+
     // Import an existing VPC by its name of paligo-vpc
     // Note that the name of the VPC is the same in all
     // regions and all accounts (staging, prod)
@@ -56,7 +62,7 @@ export class CdkStack extends cdk.Stack {
     // Create the lambda function and set timeout to 10 minutes
     const lambda = new cdk.aws_lambda.DockerImageFunction(this, "microservice-pdf-transformation", {
       functionName: "microservice-pdf-transformation",
-      code: DockerImageCode.fromEcr(repo, {tagOrDigest: 'latest'}),
+      code: DockerImageCode.fromEcr(repo, {tagOrDigest: imageVersion}),
       timeout: cdk.Duration.minutes(10),
       architecture: Architecture.ARM_64,
     });
@@ -78,6 +84,7 @@ export class CdkStack extends cdk.Stack {
       targets: [new cdk.aws_elasticloadbalancingv2_targets.LambdaTarget(lambda)],
       healthCheck: {
         enabled: true,
+        path: '/status'
       }
     });
 

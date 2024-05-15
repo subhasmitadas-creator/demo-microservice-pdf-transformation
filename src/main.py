@@ -13,11 +13,19 @@ def handler(event, context):
     logger = get_logger()
 
     logger.info("Handler called", lambda_event=event)
-    
+
+    # Endpoint hanlder for ELB health check.
+    # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/lambda-functions.html#respond-to-load-balancer
     if event["path"] == "/status":
         return {
+            "isBase64Encoded": False,
             "statusCode": 200,
-            "body": {"message": "OK"},
+            "statusDescription": "200 OK",
+            "body": "Status Ok",
+            "headers": {
+                "Set-cookie": "cookies",
+                "Content-Type": "application/json"
+            }
         }
 
     if event["isBase64Encoded"]:
