@@ -1,0 +1,218 @@
+{
+  "vpc-provider:account=397662812780:filter.tag:Name=paligo-vpc:region=eu-west-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-056b852d13907c46b",
+    "vpcCidrBlock": "172.31.0.0/16",
+    "ownerAccountId": "397662812780",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-01b2afc676d83394a",
+            "cidr": "172.31.0.0/20",
+            "availabilityZone": "eu-west-1a",
+            "routeTableId": "rtb-054be4448347a52e3"
+          },
+          {
+            "subnetId": "subnet-012bf06fb929a5645",
+            "cidr": "172.31.16.0/20",
+            "availabilityZone": "eu-west-1b",
+            "routeTableId": "rtb-054be4448347a52e3"
+          },
+          {
+            "subnetId": "subnet-05e9523562a2b78f2",
+            "cidr": "172.31.32.0/20",
+            "availabilityZone": "eu-west-1c",
+            "routeTableId": "rtb-054be4448347a52e3"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=397662812780:domainName=intern:privateZone=true:region=eu-west-1": {
+    "Id": "/hostedzone/Z0644909WC1JWTIWOO6N",
+    "Name": "intern."
+  },
+  "vpc-provider:account=397662812780:filter.tag:Name=paligo-vpc:region=us-east-2:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-001138bd3a48314b1",
+    "vpcCidrBlock": "192.1.0.0/16",
+    "ownerAccountId": "397662812780",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-01becabaf7c538787",
+            "cidr": "192.1.0.0/20",
+            "availabilityZone": "us-east-2a",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          },
+          {
+            "subnetId": "subnet-0d9a79c230f875c8e",
+            "cidr": "192.1.16.0/20",
+            "availabilityZone": "us-east-2b",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          },
+          {
+            "subnetId": "subnet-057f5a622842ecf63",
+            "cidr": "192.1.32.0/20",
+            "availabilityZone": "us-east-2c",
+            "routeTableId": "rtb-0c5cd9c4db92fc20d"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=397662812780:domainName=intern:privateZone=true:region=us-east-2": {
+    "Id": "/hostedzone/Z0644909WC1JWTIWOO6N",
+    "Name": "intern."
+  },
+  "vpc-provider:account=397662812780:filter.tag:Name=paligo-vpc:region=ap-northeast-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-081b6f5f2cb0c518c",
+    "vpcCidrBlock": "10.10.0.0/16",
+    "ownerAccountId": "397662812780",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-06d89404f0c232300",
+            "cidr": "10.10.0.0/20",
+            "availabilityZone": "ap-northeast-1a",
+            "routeTableId": "rtb-034ac58770ddc61ff"
+          },
+          {
+            "subnetId": "subnet-08351fe908cdc221f",
+            "cidr": "10.10.16.0/20",
+            "availabilityZone": "ap-northeast-1c",
+            "routeTableId": "rtb-034ac58770ddc61ff"
+          },
+          {
+            "subnetId": "subnet-0409d3f85130d9d27",
+            "cidr": "10.10.32.0/20",
+            "availabilityZone": "ap-northeast-1d",
+            "routeTableId": "rtb-034ac58770ddc61ff"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=397662812780:domainName=intern:privateZone=true:region=ap-northeast-1": {
+    "Id": "/hostedzone/Z0644909WC1JWTIWOO6N",
+    "Name": "intern."
+  },
+  "vpc-provider:account=393622382821:filter.tag:Name=paligo-vpc:region=eu-west-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-01d560ac7119e0b3c",
+    "vpcCidrBlock": "172.31.0.0/16",
+    "ownerAccountId": "393622382821",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-06905f29a5c2b0c1e",
+            "cidr": "172.31.0.0/20",
+            "availabilityZone": "eu-west-1a",
+            "routeTableId": "rtb-0e41fa73aa635a17a"
+          },
+          {
+            "subnetId": "subnet-028d9c12ceb17f3fe",
+            "cidr": "172.31.16.0/20",
+            "availabilityZone": "eu-west-1b",
+            "routeTableId": "rtb-0e41fa73aa635a17a"
+          },
+          {
+            "subnetId": "subnet-0f6aba93ec172764a",
+            "cidr": "172.31.32.0/20",
+            "availabilityZone": "eu-west-1c",
+            "routeTableId": "rtb-0e41fa73aa635a17a"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=393622382821:domainName=intern:privateZone=true:region=eu-west-1": {
+    "Id": "/hostedzone/Z06913632INENCOZRV937",
+    "Name": "intern."
+  },
+  "vpc-provider:account=393622382821:filter.tag:Name=paligo-vpc:region=us-east-2:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0f7c413708c81bf1c",
+    "vpcCidrBlock": "192.1.0.0/16",
+    "ownerAccountId": "393622382821",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-0c320f5a4f3aebafb",
+            "cidr": "192.1.0.0/20",
+            "availabilityZone": "us-east-2a",
+            "routeTableId": "rtb-0f894d23dd378260e"
+          },
+          {
+            "subnetId": "subnet-0a1b4e6ab15d40aa4",
+            "cidr": "192.1.16.0/20",
+            "availabilityZone": "us-east-2b",
+            "routeTableId": "rtb-0f894d23dd378260e"
+          },
+          {
+            "subnetId": "subnet-08d3b338d03e19931",
+            "cidr": "192.1.32.0/20",
+            "availabilityZone": "us-east-2c",
+            "routeTableId": "rtb-0f894d23dd378260e"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=393622382821:domainName=intern:privateZone=true:region=us-east-2": {
+    "Id": "/hostedzone/Z06913632INENCOZRV937",
+    "Name": "intern."
+  },
+  "vpc-provider:account=393622382821:filter.tag:Name=paligo-vpc:region=ap-northeast-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0ffaf78f6932f26af",
+    "vpcCidrBlock": "10.10.0.0/16",
+    "ownerAccountId": "393622382821",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-081c5e7ace6e1606f",
+            "cidr": "10.10.0.0/20",
+            "availabilityZone": "ap-northeast-1a",
+            "routeTableId": "rtb-0aeafd2ff99334e6b"
+          },
+          {
+            "subnetId": "subnet-0790a00dc9f47f449",
+            "cidr": "10.10.16.0/20",
+            "availabilityZone": "ap-northeast-1c",
+            "routeTableId": "rtb-0aeafd2ff99334e6b"
+          },
+          {
+            "subnetId": "subnet-0cefbf2ac228ea9f5",
+            "cidr": "10.10.32.0/20",
+            "availabilityZone": "ap-northeast-1d",
+            "routeTableId": "rtb-0aeafd2ff99334e6b"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=393622382821:domainName=intern:privateZone=true:region=ap-northeast-1": {
+    "Id": "/hostedzone/Z06913632INENCOZRV937",
+    "Name": "intern."
+  }
+}
