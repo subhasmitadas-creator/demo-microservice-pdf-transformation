@@ -13,17 +13,17 @@ def handler(event, context):
     logger = get_logger()
 
     logger.info("Handler called", lambda_event=event)
-
-    if event["isBase64Encoded"]:
-        event = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
-    else:
-        event = event["body"]
-
+    
     if event["path"] == "/status":
         return {
             "statusCode": 200,
             "body": {"message": "OK"},
         }
+
+    if event["isBase64Encoded"]:
+        event = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
+    else:
+        event = event["body"]
 
     try:
         logger.info("Validating event")
