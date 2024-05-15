@@ -19,6 +19,12 @@ def handler(event, context):
     else:
         event = event["body"]
 
+    if event["path"] == "/status":
+        return {
+            "statusCode": 200,
+            "body": {"message": "OK"},
+        }
+
     try:
         logger.info("Validating event")
         lambda_event = LambdaEvent.model_validate(event)
