@@ -14,7 +14,7 @@ def handler(event, context):
 
     logger.info("Handler called", lambda_event=event)
 
-    # Endpoint hanlder for ELB health check.
+    # Endpoint handler for ELB health check.
     # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/lambda-functions.html#respond-to-load-balancer
     if event["path"] == "/status":
         return {
