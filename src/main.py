@@ -31,7 +31,7 @@ def handler(event, context):
     if event["isBase64Encoded"]:
         event = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
     else:
-        event = event["body"]
+        event = json.loads(event["body"])
 
     try:
         logger.info("Validating event")
