@@ -5,6 +5,7 @@ import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { Architecture, DockerImageCode } from 'aws-cdk-lib/aws-lambda';
 import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
+import { Bucket } from 'aws-cdk-lib/aws-s3';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,7 +24,7 @@ export class CdkStack extends cdk.Stack {
     // instead of 'latest'. A specific version makes sure that the Lambda app is re-deployed
     // once the version changes.
     // https://stackoverflow.com/questions/65996593/aws-cdk-update-lambda-function-code-when-code-is-referenced-by-ecr-image
-    const imageVersion = '1.0.3'
+    const imageVersion = '1.0.4'
 
     // Import an existing VPC by its name of paligo-vpc
     // Note that the name of the VPC is the same in all
@@ -73,6 +74,11 @@ export class CdkStack extends cdk.Stack {
     const inboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/inbound');
 
     // Import s3 bucket
+    let s3OutboundBucket = Bucket.fromBucketArn(this, 'outboundBucket', `arn:aws:s3:::${this.region}-paligoapp-net-serviceoutbound`)
+    let s3InboundBucket = Bucket.fromBucketArn(this, 'inboundBucket', `arn:aws:s3:::${this.region}-paligoapp-net-serviceinbound`)
+
+    s3OutboundBucket.grantReadWrite(lambda);
+    s3InboundBucket.grantRead(lambda);
 
     // Add env variables for lambda function
     lambda.addEnvironment("S3_DELIVERYBUCKET", outboundBucket);
