@@ -15,8 +15,8 @@ class FileService:
 
     def __init__(self) -> None:
         self.client = boto3.client("s3")
-        self.inbound_bucket = os.getenv("S3_PICKUPBUCKET")
-        self.outbound_bucket = os.getenv("S3_DELIVERYBUCKET")
+        self.inbound_bucket = os.getenv("S3_DELIVERYBUCKET")
+        self.outbound_bucket = os.getenv("S3_PICKUPBUCKET")
         self.logger = get_logger()
 
     def download_file_from_s3(self, file_name: str) -> str:

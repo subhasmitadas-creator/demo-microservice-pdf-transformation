@@ -77,8 +77,8 @@ export class CdkStack extends cdk.Stack {
     let s3OutboundBucket = Bucket.fromBucketArn(this, 'outboundBucket', `arn:aws:s3:::${this.region}-paligoapp-net-serviceoutbound`)
     let s3InboundBucket = Bucket.fromBucketArn(this, 'inboundBucket', `arn:aws:s3:::${this.region}-paligoapp-net-serviceinbound`)
 
-    s3OutboundBucket.grantReadWrite(lambda);
-    s3InboundBucket.grantRead(lambda);
+    s3OutboundBucket.grantRead(lambda);
+    s3InboundBucket.grantReadWrite(lambda);
 
     // Add env variables for lambda function
     lambda.addEnvironment("S3_DELIVERYBUCKET", outboundBucket);
