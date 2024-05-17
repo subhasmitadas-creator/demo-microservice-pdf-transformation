@@ -38,7 +38,7 @@ class FileService:
 
         return tmp_file_name
 
-    def upload_file_to_s3(self, upload_file_name: str, output_file: str) -> bool:
+    def upload_file_to_s3(self, upload_file_name: str, output_file: str) -> bool|str:
         """Uploads a file to S3"""
         try:
             self.client.upload_file(
@@ -54,7 +54,8 @@ class FileService:
             )
             return False
 
-        return True
+        # Last minute changes, this method should probably be refactored to raise an error instead of returning false
+        return f"s3://{self.outbound_bucket}/{output_file}"
 
     def generate_filename(self) -> str:
         """Generates a temporary file name"""

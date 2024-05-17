@@ -22,10 +22,7 @@ def handler(event, context):
             "statusCode": 200,
             "statusDescription": "200 OK",
             "body": "Status Ok",
-            "headers": {
-                "Set-cookie": "cookies",
-                "Content-Type": "application/json"
-            }
+            "headers": {"Set-cookie": "cookies", "Content-Type": "application/json"},
         }
 
     if event["isBase64Encoded"]:

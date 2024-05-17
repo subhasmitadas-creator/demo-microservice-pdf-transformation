@@ -77,7 +77,11 @@ class EventService:
         self.logger.info(
             "Uploading file to S3", file_name=input_file, output_file=output_file
         )
-        if not file_service.upload_file_to_s3(input_file, output_file):
+
+        output_file_path = file_service.upload_file_to_s3(
+            upload_file_name=input_file, output_file=output_file
+        )
+        if not output_file_path:
             self.logger.error("Failed uploading file to S3 bucket")
             response.add_error("Error occured during file upload")
             return response
