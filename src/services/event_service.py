@@ -88,7 +88,7 @@ class EventService:
 
         if response.status_code == 200:
             response.message = f"Job(s) completed and {output_file} uploaded to S3."
-            response.output_file = output_file
+            response.output_file = output_file_path
 
         return response
 
