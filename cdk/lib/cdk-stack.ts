@@ -24,7 +24,7 @@ export class CdkStack extends cdk.Stack {
     // instead of 'latest'. A specific version makes sure that the Lambda app is re-deployed
     // once the version changes.
     // https://stackoverflow.com/questions/65996593/aws-cdk-update-lambda-function-code-when-code-is-referenced-by-ecr-image
-    const imageVersion = '1.0.6'
+    const imageVersion = '1.0.7'
 
     // Import an existing VPC by its name of paligo-vpc
     // Note that the name of the VPC is the same in all
@@ -81,8 +81,8 @@ export class CdkStack extends cdk.Stack {
     s3InboundBucket.grantReadWrite(lambda);
 
     // Add env variables for lambda function
-    lambda.addEnvironment("S3_DELIVERYBUCKET", outboundBucket);
-    lambda.addEnvironment("S3_PICKUPBUCKET", inboundBucket);
+    lambda.addEnvironment("SERVICE_RECEIVE_BUCKET", inboundBucket);
+    lambda.addEnvironment("SERVICE_DELIVERY_BUCKET", outboundBucket);
 
     // Create a new listener that targets the lambda function
     const listener = alb.addListener('cdk-listener', { port: servicePort });

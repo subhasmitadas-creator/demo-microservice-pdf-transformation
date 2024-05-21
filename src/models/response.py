@@ -18,7 +18,10 @@ class ResponseObject:
         """Formats the object for output"""
         return {
             "statusCode": self.status_code,
-            "body": {"message": self.message, "errors": self.errors, "output_file": self.output_file},
+            "body": json.dumps({"message": self.message, "errors": self.errors, "output_file": self.output_file}),
+            "headers": {"Set-cookie": "cookies", "Content-Type": "application/json"},
+            "isBase64Encoded": False,
+            "statusDescription": "200 OK",
         }
     
     def add_error(self, error_msg: str, status_code: int = 500):
