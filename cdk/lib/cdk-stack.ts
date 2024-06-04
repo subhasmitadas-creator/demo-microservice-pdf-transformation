@@ -33,7 +33,7 @@ export class CdkStack extends cdk.Stack {
       vpcName: 'paligo-vpc'
     });
 
-    // Application Loadbalancer ARN used for internal services 
+    // Application Loadbalancer ARN used for internal services
     const loadbalancerInternARN = ssm.StringParameter.valueForStringParameter(this, '/env/alb/intern/arn');
 
     // Security group that allows incoming traffic to the lb and the service.
@@ -65,6 +65,7 @@ export class CdkStack extends cdk.Stack {
       functionName: "microservice-pdf-transformation",
       code: DockerImageCode.fromEcr(repo, {tagOrDigest: imageVersion}),
       timeout: cdk.Duration.minutes(10),
+      memorySize: 1024,
       architecture: Architecture.ARM_64,
     });
 
@@ -90,7 +91,8 @@ export class CdkStack extends cdk.Stack {
       targets: [new cdk.aws_elasticloadbalancingv2_targets.LambdaTarget(lambda)],
       healthCheck: {
         enabled: true,
-        path: '/status'
+        path: '/status',
+        interval: cdk.Duration.minutes(5),
       }
     });
 
