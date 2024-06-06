@@ -29,14 +29,21 @@ class PdfjamProcessor(PdfProcessor):
         )
 
         frame_value = "true" if job.nup_frame else "false"
-        booklet_value = "true" if job.nup_booklet else ""
-        booklet = "--booklet" if job.nup_booklet else ""
 
-        # fmt: off
-        process = subprocess.run(
-            [
-                "pdfjam",
-                booklet, booklet_value,
+        """
+        The subprocess.run (which runs a process) takes an array
+        of the command as input, e.g. if you want to run "pdfjam --nup 5"
+        you would pass in an array such as ["pdfjam", "--nup", "5"]
+        We create the array outside of the call because we want to
+        check if we are using the --booklet option and also to log the call
+        """
+        shell_command = list()
+        shell_command.append("pdfjam")
+        
+        if job.nup_booklet:
+            shell_command = shell_command + ["--booklet", "true"]
+
+        shell_command = shell_command + [
                 '--nup', f"{job.nup_columns}x{job.nup_rows}",
                 "--papersize", f"{{{paper_size_x}pt,{paper_size_y}pt}}",
                 "--templatesize", f"{{{job.page_width}pt}}{{{job.page_height}pt}}",
@@ -44,7 +51,13 @@ class PdfjamProcessor(PdfProcessor):
                 "--delta", f"{job.nup_delta_x}pt {job.nup_delta_y}pt",
                 "--outfile", f"{job.input_file}.result",
                 job.input_file
-            ],
+            ]
+        
+        self.logger.info("Executing pdfjam shell command", command=" ".join(shell_command))
+
+        # fmt: off
+        process = subprocess.run(
+            shell_command,
             capture_output=True,
             text=True,
         )
