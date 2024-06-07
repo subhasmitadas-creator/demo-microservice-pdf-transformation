@@ -5,7 +5,7 @@ version = 1.0.7
 
 DOCKER_RUN_CMD = \
 	docker run --platform linux/arm64 -d \
-	--name microservice.pdftransformation \
+	--name eu-west-1.pdftransformation.intern \
 	-p 9000:8080 \
 	-v ${PWD}/src:/function/src:cached \
 	-v ${PWD}/tests:/function/tests:cached \
@@ -25,10 +25,17 @@ all: run build stop shell test logs restart request test-verbose
 
 run: 
 ifeq ("$(wildcard .env)","")
-	$(error .env file is missing, please copy the example env file!)
-else
-	$(DOCKER_RUN_CMD)
+	$(info .env file is missing, copying example env file..)
+	@cp .env.example .env
 endif
+ifneq ("$(shell docker ps -q --filter ancestor=${IMAGE_NAME})","")
+	@echo "Stopping running containers and running this container.."
+	docker stop $(shell docker ps -q --filter ancestor=${IMAGE_NAME})
+endif
+ifneq ("$(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)","")
+	@docker rm $(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)
+endif
+	$(DOCKER_RUN_CMD)
 
 build:
 	$(DOCKER_BUILD_CMD)
@@ -78,4 +85,4 @@ publish:
 logs:
 	docker logs $(CONTAINER_ID)
 
-restart: stop run
+restart: run
