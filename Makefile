@@ -1,7 +1,7 @@
 IMAGE_NAME = "microservice-pdf"
 S3_BUCKET = "microservice-pdf"
 # When updating the version, you also need to update the version in CDK!
-version = 1.0.7
+version = 1.0.8
 
 DOCKER_RUN_CMD = \
 	docker run --platform linux/arm64 -d \
