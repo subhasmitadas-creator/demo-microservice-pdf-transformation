@@ -53,7 +53,7 @@ class PdfjamProcessor(PdfProcessor):
                 job.input_file
             ]
         
-        self.logger.info("Executing pdfjam shell command", command=" ".join(shell_command))
+        self.logger.info("Executing pdfjam shell command", command=" ".join([f"'{part}'" for part in shell_command]))
 
         # fmt: off
         process = subprocess.run(
