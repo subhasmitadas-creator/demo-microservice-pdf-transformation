@@ -29,6 +29,43 @@ def test_processor_raises_error_if_files_are_missing():
             )
         )
 
+def test_can_run_pdfjam_without_booklet():
+    shutil.copy2(
+        os.path.dirname(os.path.abspath(__file__)) + "/../assets/sample.pdf",
+        os.path.dirname(os.path.abspath(__file__)) + "/../assets/input.pdf",
+    )
+    processor = PdfjamProcessor()
+
+    processor.run(
+        PagesizeJob(
+            command="pagesize",
+            input_file=os.path.dirname(os.path.abspath(__file__))
+            + "/../assets/input.pdf",
+            nup_booklet=False,
+            nup_columns=2,
+            nup_rows=1,
+            page_width=300,
+            page_height=300,
+            nup_frame=False,
+            nup_delta_x=5,
+            nup_delta_y=5,
+        )
+    )
+
+    assert os.path.getsize(
+        os.path.dirname(os.path.abspath(__file__)) + "/../../tests/assets/input.pdf"
+    ) == os.path.getsize(
+        os.path.dirname(os.path.abspath(__file__))
+        + "/../../tests/assets/sample_with_pagesize_without_booklet.pdf"
+    )
+
+    os.remove(
+        os.path.dirname(os.path.abspath(__file__)) + "/../../tests/assets/input.pdf"
+    )
+
+    assert not os.path.exists(
+        os.path.dirname(os.path.abspath(__file__)) + "/../../tests/assets/input.pdf"
+    )
 
 def test_can_set_pagesize():
     shutil.copy2(
