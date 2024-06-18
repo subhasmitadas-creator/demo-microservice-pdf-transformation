@@ -18,17 +18,24 @@ DOCKER_RUN_CMD = \
 DOCKER_BUILD_CMD = \
 	docker build --platform linux/arm64 -t ${IMAGE_NAME}:latest .
 
-CONTAINER_ID := $(shell docker ps -a --filter ancestor=${IMAGE_NAME}:latest --format="{{.ID}}")
+CONTAINER_ID := $(shell docker ps -a --filter name=eu-west-1.pdftransformation.intern --format="{{.ID}}")
 
 all: run build stop shell test logs restart request test-verbose
 .PHONY: all
 
 run: 
 ifeq ("$(wildcard .env)","")
-	$(error .env file is missing, please copy the example env file!)
-else
-	$(DOCKER_RUN_CMD)
+	$(info .env file is missing, copying example env file..)
+	@cp .env.example .env
 endif
+ifneq ("$(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)","")
+	@echo "Stopping running containers and running this container.."
+	docker stop $(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)
+endif
+ifneq ("$(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)","")
+	@docker rm $(shell docker ps -q --filter name=eu-west-1.pdftransformation.intern)
+endif
+	$(DOCKER_RUN_CMD)
 
 build:
 	$(DOCKER_BUILD_CMD)
@@ -78,4 +85,4 @@ publish:
 logs:
 	docker logs $(CONTAINER_ID)
 
-restart: stop run
+restart: run

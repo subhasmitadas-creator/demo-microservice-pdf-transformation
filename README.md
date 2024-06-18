@@ -1,3 +1,10 @@
+# Running the container locally
+
+* Build the image (`make build`)
+* Launch the image (`make run`, this will stop the running container)
+
+To stop the container, execute `make stop` and then restart your paligo-environment to get pdf-microservice back up (`paligo-dev restart`)
+
 # Local Development
 
 * Install python 3.12 (brew install python@3.12)
