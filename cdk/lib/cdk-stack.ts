@@ -67,6 +67,7 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(10),
       memorySize: 1024,
       architecture: Architecture.ARM_64,
+      ephemeralStorageSize: cdk.Size.gibibytes(2),
     });
 
     // Outbound bucket. This bucket is used by the pdf transformation service
