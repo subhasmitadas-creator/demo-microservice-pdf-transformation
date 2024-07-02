@@ -6,6 +6,7 @@ definitions:
           name: "397662812780.dkr.ecr.eu-west-1.amazonaws.com/microservice-pdftransformation:latest"
           aws:
             oidc-role: "arn:aws:iam::397662812780:role/ci/pipelines/bitbucket_pipeline_ccms"
+        oidc: true
         script:
           - echo "execute pytest"
           - poetry run pytest tests --disable-warnings
