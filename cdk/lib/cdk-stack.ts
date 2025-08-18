@@ -6,6 +6,7 @@ import { Architecture, DockerImageCode } from 'aws-cdk-lib/aws-lambda';
 import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -68,6 +69,7 @@ export class CdkStack extends cdk.Stack {
       memorySize: 1024,
       architecture: Architecture.ARM_64,
       ephemeralStorageSize: cdk.Size.gibibytes(2),
+      logRetention: RetentionDays.THREE_MONTHS
     });
 
     // Outbound bucket. This bucket is used by the pdf transformation service
