@@ -87,7 +87,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     // CloudWatch Alarm for Throttled Invocations
-    new cloudwatch.Alarm(this, 'LambdaThrottleAlarm', {
+    const throttledAlarm = new cloudwatch.Alarm(this, 'LambdaThrottleAlarm', {
       alarmName: `${lambda.functionName}-Throttles`,
       metric: lambda.metricThrottles({
         period: cdk.Duration.minutes(5),
