@@ -86,6 +86,19 @@ export class CdkStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
+    // CloudWatch Alarm for Throttled Invocations
+    new cloudwatch.Alarm(this, 'LambdaThrottleAlarm', {
+      alarmName: `${lambda.functionName}-Throttles`,
+      metric: lambda.metricThrottles({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum', // count total throttles in period
+      }),
+      threshold: 0, // threshold is > 0
+      evaluationPeriods: 1, // only one 5-min datapoint needed
+      datapointsToAlarm: 1, // alarm on first breach
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    });
+
     // Outbound bucket. This bucket is used by the pdf transformation service
     // to deliver files to Paligo - aka outbound files.
     const outboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/outbound');
