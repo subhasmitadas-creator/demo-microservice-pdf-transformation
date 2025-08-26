@@ -7,6 +7,7 @@ import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
 import { Construct } from 'constructs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -70,6 +71,19 @@ export class CdkStack extends cdk.Stack {
       architecture: Architecture.ARM_64,
       ephemeralStorageSize: cdk.Size.gibibytes(2),
       logRetention: RetentionDays.THREE_MONTHS
+    });
+
+    // CloudWatch Alarm for Lambda Errors
+    const errorAlarm = new cloudwatch.Alarm(this, 'LambdaErrorAlarm', {
+      alarmName: `${lambda.functionName}-LambdaError`,
+      metric: lambda.metricErrors({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum', // total number of errors in that period
+      }),
+      threshold: 1, // alarm if >= 1 error
+      evaluationPeriods: 1, // only one 5-minute datapoint needed
+      datapointsToAlarm: 1, // alarm after first datapoint breaching threshold
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
     // Outbound bucket. This bucket is used by the pdf transformation service
