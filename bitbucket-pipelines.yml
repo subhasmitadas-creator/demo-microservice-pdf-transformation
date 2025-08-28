@@ -12,6 +12,7 @@ definitions:
         oidc: true
         script:
           - echo "execute pytest"
+          - poetry install
           - poetry run pytest tests --disable-warnings
 pipelines:
   custom: # trigger manually
