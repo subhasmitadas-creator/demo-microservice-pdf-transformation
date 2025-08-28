@@ -8,6 +8,8 @@ import { Construct } from 'constructs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as cw_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -73,6 +75,16 @@ export class CdkStack extends cdk.Stack {
       logRetention: RetentionDays.THREE_MONTHS
     });
 
+    //get account and region dynamically
+    const accountId = cdk.Stack.of(this).account;
+    const region = cdk.Stack.of(this).region;
+
+    // Import existing SNS topic by ARN
+    const alarmTopic = sns.Topic.fromTopicArn(this,
+        'ImportedAlarmTopic',
+        `arn:aws:sns:${region}:${accountId}:ActionRequired`
+    );
+
     // CloudWatch Alarm for Lambda Errors
     const errorAlarm = new cloudwatch.Alarm(this, 'LambdaErrorAlarm', {
       alarmName: `${lambda.functionName}-LambdaError`,
@@ -86,6 +98,9 @@ export class CdkStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
+    // Add SNS topic as alarm action
+    errorAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // CloudWatch Alarm for Throttled Invocations
     const throttledAlarm = new cloudwatch.Alarm(this, 'LambdaThrottleAlarm', {
       alarmName: `${lambda.functionName}-Throttles`,
@@ -98,6 +113,9 @@ export class CdkStack extends cdk.Stack {
       datapointsToAlarm: 1, // alarm on first breach
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
     });
+
+    // Add SNS topic as alarm action
+    throttledAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // Outbound bucket. This bucket is used by the pdf transformation service
     // to deliver files to Paligo - aka outbound files.
