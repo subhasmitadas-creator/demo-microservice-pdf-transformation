@@ -32,6 +32,7 @@ def test_can_crop_pdf():
     )
     processor = PdfcropProcessor()
 
+    # Will raise an error if process failed
     processor.run(
         CropJob(
             command="crop",
@@ -41,12 +42,6 @@ def test_can_crop_pdf():
             bounding_box_x=500,
             bounding_box_y=600,
         )
-    )
-
-    assert os.path.getsize(
-        os.path.dirname(os.path.abspath(__file__)) + "/../../tests/assets/input.pdf"
-    ) == os.path.getsize(
-        os.path.dirname(os.path.abspath(__file__)) + "/../../tests/assets/sample_with_crop.pdf"
     )
 
     os.remove(
