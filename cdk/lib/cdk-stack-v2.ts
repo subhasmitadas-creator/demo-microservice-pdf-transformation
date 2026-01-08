@@ -68,7 +68,7 @@ export class CdkStackV2 extends cdk.Stack {
     albSg.addIngressRule(
       ec2.Peer.ipv4(vpc.vpcCidrBlock),
       ec2.Port.tcp(servicePort),
-      'Allow VPC CIDR to reach javahelpindexer listener'
+      'Allow VPC CIDR to reach pdf-transformation listener'
     );
 
     // ------------------------------------------------------------
