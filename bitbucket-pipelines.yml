@@ -10,9 +10,6 @@ definitions:
           aws:
             oidc-role: "arn:aws:iam::397662812780:role/bitbucket_pipeline_pdftransformation"
         oidc: true
-        runtime:
-          cloud:
-            arch: arm
         script:
           - echo "execute pytest"
           - poetry install
