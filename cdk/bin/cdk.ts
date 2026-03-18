@@ -9,6 +9,6 @@ new CdkStack(app, 'lambda-microservice-pdf', {
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
 
-new CdkStackV2(app, 'lambda-microservice-pdf-v2', {
+new CdkStackV2(app, 'PaligoLambdaPdfTransform-V2', {
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });

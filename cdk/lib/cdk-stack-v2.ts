@@ -13,6 +13,9 @@ import * as cw_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import {
   aws_elasticloadbalancingv2 as elbv2,
 } from 'aws-cdk-lib';
+import {
+  aws_elasticloadbalancingv2_targets as elbv2Targets,
+} from 'aws-cdk-lib';
 
 export class CdkStackV2 extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -33,7 +36,7 @@ export class CdkStackV2 extends cdk.Stack {
     // instead of 'latest'. A specific version makes sure that the Lambda app is re-deployed
     // once the version changes.
     // https://stackoverflow.com/questions/65996593/aws-cdk-update-lambda-function-code-when-code-is-referenced-by-ecr-image
-    const imageVersion = '1.0.8'
+    const imageVersion = 'latest'
 
     // ------------------------------------------------------------
     // VPC v2
@@ -169,13 +172,26 @@ export class CdkStackV2 extends cdk.Stack {
       open: false, // prevents CDK from adding 0.0.0.0/0 inbound rule 
     });
 
-    listener.addTargets('PDFTransformationV2Targets', {
-      targets: [new cdk.aws_elasticloadbalancingv2_targets.LambdaTarget(lambda)],
-      healthCheck: {
-        enabled: true,
-        path: '/status',
-        interval: cdk.Duration.minutes(5),
+    const PDFTransformationTg = new elbv2.ApplicationTargetGroup(
+      this,
+      'PDFTransformationV2TargetGroup', {
+        vpc,
+        targetGroupName: `lambda-pdf-transform-tg-v2`.slice(0, 32), // Max 32 chars
+        targetType: elbv2.TargetType.LAMBDA, // Important for Lambda
+        healthCheck: {
+          enabled: true,
+          path: '/status',
+          interval: cdk.Duration.minutes(5),
+        },
       }
+    );
+
+     // Register Lambda
+    PDFTransformationTg.addTarget(new elbv2Targets.LambdaTarget(lambda))
+
+    // Attach TG to listener
+    listener.addTargetGroups('PDFTransformationV2TgAttachment', {
+      targetGroups: [PDFTransformationTg],
     });
   }
 }
