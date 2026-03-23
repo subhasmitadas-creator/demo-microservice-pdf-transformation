@@ -49,10 +49,10 @@ export class CdkStackV2 extends cdk.Stack {
     // IMPORT EXISTING INTERNAL ALB (EXPORTS)
     // ------------------------------------------------------------
     // From ECS baseline stack
-    const albArn = cdk.Fn.importValue("Paligo-ECS-InternalALBArn");
+    const albArn = cdk.Fn.importValue("Paligo-Foundation-ECS-Base-InternalALBArn");
 
     // From Network baseline stack (ALB SG)
-    const albSgId = cdk.Fn.importValue("Paligo-New-Networking-Infra-SgPrivateAll");
+    const albSgId = cdk.Fn.importValue("Paligo-Foundation-VPC-Base-SgPrivateAll");
 
     const alb = elbv2.ApplicationLoadBalancer.fromApplicationLoadBalancerAttributes(this, 'InternalAlb', {
       loadBalancerArn: albArn,
