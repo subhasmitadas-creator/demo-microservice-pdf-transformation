@@ -145,8 +145,8 @@ export class CdkStackV2 extends cdk.Stack {
     // ------------------------------------------------------------
     // Outbound bucket. This bucket is used by the pdf transformation service
     // to deliver files to Paligo - aka outbound files.
-    const outboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/outbound');
-    const inboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice/inbound');
+    const outboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice-v2/outbound');
+    const inboundBucket = ssm.StringParameter.valueForStringParameter(this, '/env/s3/microservice-v2/inbound');
 
     // Import s3 bucket
     let s3OutboundBucket = Bucket.fromBucketArn(this, 'outboundBucket', `arn:aws:s3:::${outboundBucket}`)
