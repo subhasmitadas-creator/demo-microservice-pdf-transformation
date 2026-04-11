@@ -102,10 +102,14 @@ export class CdkStackV2 extends cdk.Stack {
     const accountId = cdk.Stack.of(this).account;
     const region = cdk.Stack.of(this).region;
 
-    // Import existing SNS topic by ARN
-    const alarmTopic = sns.Topic.fromTopicArn(this,
-        'ImportedAlarmTopic',
-        `arn:aws:sns:${region}:${accountId}:ActionRequired`
+    // Import BetterStack SNS topics for alarm routing
+    const alertHighTopic = sns.Topic.fromTopicArn(this,
+        'BetterStackAlertHigh',
+        `arn:aws:sns:${region}:${accountId}:BetterStackAlertHigh`
+    );
+    const alertLowTopic = sns.Topic.fromTopicArn(this,
+        'BetterStackAlertLow',
+        `arn:aws:sns:${region}:${accountId}:BetterStackAlertLow`
     );
 
     // CloudWatch Alarm for Lambda Errors
@@ -121,8 +125,8 @@ export class CdkStackV2 extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
-    // Add SNS topic as alarm action
-    errorAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    errorAlarm.addAlarmAction(new cw_actions.SnsAction(alertHighTopic));
+    errorAlarm.addOkAction(new cw_actions.SnsAction(alertHighTopic));
 
     // CloudWatch Alarm for Throttled Invocations
     const throttledAlarm = new cloudwatch.Alarm(this, 'LambdaThrottleAlarm', {
@@ -137,8 +141,8 @@ export class CdkStackV2 extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
     });
 
-    // Add SNS topic as alarm action
-    throttledAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    throttledAlarm.addAlarmAction(new cw_actions.SnsAction(alertLowTopic));
+    throttledAlarm.addOkAction(new cw_actions.SnsAction(alertLowTopic));
 
     // ------------------------------------------------------------
     // S3 buckets
