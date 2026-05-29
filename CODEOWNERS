@@ -1,0 +1,3 @@
+# CODEOWNERS — whole-repo ownership for Aikido security-finding routing.
+# Assigns every path to the owning team so Aikido auto-routes vulnerabilities to it.
+* @paligo/retention
