@@ -10,6 +10,8 @@ import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cw_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cr from 'aws-cdk-lib/custom-resources';
 import {
   aws_elasticloadbalancingv2 as elbv2,
 } from 'aws-cdk-lib';
@@ -196,6 +198,73 @@ export class CdkStackV2 extends cdk.Stack {
     // Attach TG to listener
     listener.addTargetGroups('PDFTransformationV2TgAttachment', {
       targetGroups: [PDFTransformationTg],
+    });
+
+    // ------------------------------------------------------------
+    // PRIVATE DNS
+    // ------------------------------------------------------------
+    // `<region>.pdftransformation.intern` is what clients resolve (service-paligo passes it
+    // as `<region>.pdftransformation.intern:8000`). Created by the deleted v1 stack, so it
+    // has been live but unmanaged since.
+    //
+    // UPSERT rather than AWS::Route53::RecordSet: CloudFormation can neither adopt an
+    // existing record nor create one whose name is taken, so a RecordSet would mean
+    // delete-then-create — a DNS gap. UPSERT is idempotent and adopts in place.
+    const internZone = cdk.aws_route53.HostedZone.fromLookup(this, 'InternZone', {
+      domainName: 'intern',
+      privateZone: true,
+    });
+
+    const recordName = `${this.region}.pdftransformation.intern`;
+
+    // No onDelete: destroying the stack leaves the record for clients still resolving it.
+    new cr.AwsCustomResource(this, 'PdfTransformationV2ServiceRecordUpsert', {
+      onUpdate: {
+        service: 'Route53',
+        action: 'changeResourceRecordSets',
+        parameters: {
+          HostedZoneId: internZone.hostedZoneId,
+          ChangeBatch: {
+            Comment: `Managed by ${this.stackName}`,
+            Changes: [{
+              Action: 'UPSERT',
+              ResourceRecordSet: {
+                Name: recordName,
+                Type: 'CNAME',
+                TTL: cdk.Duration.minutes(30).toSeconds(),
+                ResourceRecords: [{
+                  Value: cdk.Fn.importValue('Paligo-Foundation-ECS-Base-InternalALBDNS'),
+                }],
+              },
+            }],
+          },
+        },
+        // Stable across deploys, so a changed target is an update, not a replacement.
+        physicalResourceId: cr.PhysicalResourceId.of(recordName),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['route53:ChangeResourceRecordSets'],
+          resources: [internZone.hostedZoneArn],
+          conditions: {
+            'ForAllValues:StringEquals': {
+              'route53:ChangeResourceRecordSetsRecordTypes': ['CNAME'],
+              'route53:ChangeResourceRecordSetsActions': ['UPSERT'],
+              'route53:ChangeResourceRecordSetsNormalizedRecordNames': [recordName],
+            },
+          },
+        }),
+      ]),
+      installLatestAwsSdk: false,
+    });
+
+    // `-v2` in the parameter name only: the value stays the record managed above, which is
+    // what actually resolves. Port comes from servicePort so it cannot drift from the
+    // listener. v1's `/env/microservice/endpoint/pdftransformation` is left untouched.
+    new ssm.StringParameter(this, 'PdfTransformationV2Endpoint', {
+      parameterName: '/env/microservice/endpoint/pdftransformation-v2',
+      description: 'Complete endpoint for this micro service',
+      stringValue: `${recordName}:${servicePort}`,
     });
   }
 }
