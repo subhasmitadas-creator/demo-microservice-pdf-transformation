@@ -203,10 +203,6 @@ export class CdkStackV2 extends cdk.Stack {
     // ------------------------------------------------------------
     // PRIVATE DNS
     // ------------------------------------------------------------
-    // `<region>.pdftransformation.intern` is what clients resolve (service-paligo passes it
-    // as `<region>.pdftransformation.intern:8000`). Created by the deleted v1 stack, so it
-    // has been live but unmanaged since.
-    //
     // UPSERT rather than AWS::Route53::RecordSet: CloudFormation can neither adopt an
     // existing record nor create one whose name is taken, so a RecordSet would mean
     // delete-then-create — a DNS gap. UPSERT is idempotent and adopts in place.
@@ -259,8 +255,7 @@ export class CdkStackV2 extends cdk.Stack {
     });
 
     // `-v2` in the parameter name only: the value stays the record managed above, which is
-    // what actually resolves. Port comes from servicePort so it cannot drift from the
-    // listener. v1's `/env/microservice/endpoint/pdftransformation` is left untouched.
+    // what actually resolves.
     new ssm.StringParameter(this, 'PdfTransformationV2Endpoint', {
       parameterName: '/env/microservice/endpoint/pdftransformation-v2',
       description: 'Complete endpoint for this micro service',
