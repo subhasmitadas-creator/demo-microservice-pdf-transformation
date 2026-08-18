@@ -1,13 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  OVERLAY — the pdf-transformation workload for the Paligo playground account.
+  OVERLAY — pdf-transformation demo workload in the Paligo playground account.
 
-  Deployed on every commit. Owns only things that change with the code: the
-  ALB, the ECS service, the Lambda and their IAM. Networking and the registry
-  come from the base layer via Fn::ImportValue.
-
-  Adding another environment means another directory under infra/overlays/,
-  not another copy of this template — only the parameter values differ.
+  Demo-grade and cost-minimised. It reuses the account's existing default VPC
+  and public subnets rather than building its own, so there is no NAT gateway
+  and no load balancer. Idle cost is effectively zero.
 
 Parameters:
   ServiceName:
@@ -18,101 +15,95 @@ Parameters:
     Type: String
     Description: Commit SHA, passed by the pipeline.
 
-  ContainerPort:
-    Type: Number
-    Default: 8080
-    Description: >
-      Port the Lambda Runtime Interface Emulator binds inside the ECS task.
-      Unused by Lambda, which talks to the real Runtime API.
-
-  BaseNetworkStack:
-    Type: String
-    Default: pdf-transformation-demo-base-network
-
   BaseRegistryStack:
     Type: String
     Default: pdf-transformation-demo-base-registry
 
+  # --- Existing account resources, discovered not created -----------------
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-d6a96faf
+    Description: The account's default VPC (paligo-vpc, 172.31.0.0/16).
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-84cbc8cc,subnet-d1433e8b,subnet-7493a312
+    Description: >
+      Existing PUBLIC subnets. Public matters: tasks reach ECR and CloudWatch
+      through the VPC's internet gateway, which is free. A NAT gateway would
+      cost ~$33/month and exists only to serve private subnets.
+
+  AllowedCidr:
+    Type: String
+    Default: 178.174.143.114/32
+    Description: >
+      Who may reach the task port. Defaults to the IP this was set up from.
+      Update it when your address changes — do not widen it to 0.0.0.0/0:
+      the emulator invokes the handler for anyone who can connect, and the
+      handler reads and writes S3.
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: Port the Lambda Runtime Interface Emulator binds.
+
+  DesiredCount:
+    Type: Number
+    Default: 0
+    Description: >
+      0 by default so nothing runs, and nothing is billed, between demos.
+      Scale to 1 for a demo (~$0.03/hour) and back to 0 afterwards.
+
 Resources:
 
   # =========================================================================
-  # Security groups
+  # ECS — reuses the existing VPC; the cluster itself is free
   # =========================================================================
-
-  AlbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Sub 'Public ingress to the ${ServiceName} ALB'
-      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-          Description: HTTP from anywhere (demo only — no TLS listener)
 
   ServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub 'ALB-only ingress to ${ServiceName} tasks'
-      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
+      GroupDescription: !Sub 'Restricted ingress to ${ServiceName} demo tasks'
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: !Ref ContainerPort
           ToPort: !Ref ContainerPort
-          SourceSecurityGroupId: !Ref AlbSecurityGroup
-          Description: Only the ALB may reach the container port
+          CidrIp: !Ref AllowedCidr
+          Description: Demo access from a single address only
 
-  # =========================================================================
-  # Load balancer
-  # =========================================================================
-
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  LogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Name: !Sub '${ServiceName}-alb'
-      Scheme: internet-facing
-      Type: application
-      SecurityGroups: [!Ref AlbSecurityGroup]
-      Subnets: !Split [',', !ImportValue {'Fn::Sub': '${BaseNetworkStack}-PublicSubnets'}]
+      LogGroupName: !Sub '/ecs/${ServiceName}'
+      RetentionInDays: 7
 
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  # A dedicated cluster rather than the account's existing `microservices` or
+  # `sample` clusters: clusters are free, so isolation costs nothing and the
+  # demo can be deleted without touching anyone else's workloads.
+  Cluster:
+    Type: AWS::ECS::Cluster
     Properties:
-      Name: !Sub '${ServiceName}-tg'
-      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
-      Port: !Ref ContainerPort
-      Protocol: HTTP
-      TargetType: ip
-      # RIE exposes exactly one route and rejects GET on it. This health check
-      # asserts "the emulator is listening", not "the handler works" —
-      # accepting 4xx is deliberate, not an oversight.
-      HealthCheckPath: /2015-03-31/functions/function/invocations
-      Matcher:
-        HttpCode: '200-499'
-      HealthCheckIntervalSeconds: 30
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: '15'
+      ClusterName: !Sub '${ServiceName}-cluster'
 
-  Listener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
   # =========================================================================
-  # Shared IAM — one policy, both runtimes
+  # Shared IAM — the ECS task and the Lambda run the same handler, so they
+  # get the same S3 permissions and nothing more.
   # =========================================================================
 
-  # The ECS task and the Lambda run the identical handler, so they get
-  # identical S3 permissions and nothing more.
   S3AccessPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -131,8 +122,6 @@ Resources:
             Effect: Allow
             Action:
               - s3:PutObject
-              # boto3's managed upload_file falls back to multipart for large
-              # PDFs and needs to be able to abandon a failed part.
               - s3:AbortMultipartUpload
             Resource: !Sub
               - 'arn:aws:s3:::${Bucket}/*'
@@ -150,36 +139,6 @@ Resources:
               - !Sub
                 - 'arn:aws:s3:::${Bucket}'
                 - Bucket: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-OutboundBucket'}
-
-  # =========================================================================
-  # ECS
-  # =========================================================================
-
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/ecs/${ServiceName}'
-      RetentionInDays: 14
-
-  Cluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Sub '${ServiceName}-cluster'
-      ClusterSettings:
-        - Name: containerInsights
-          Value: enabled
-
-  TaskExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: { Service: ecs-tasks.amazonaws.com }
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -213,7 +172,7 @@ Resources:
             - '${Repo}:${ImageTag}'
             - Repo: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-RepositoryUri'}
           # Prepend the Runtime Interface Emulator to the image's own
-          # entrypoint. RIE exposes the unchanged handler over HTTP, so no
+          # entrypoint so the unchanged handler is reachable over HTTP. No
           # application code differs between the Lambda and ECS paths.
           EntryPoint:
             - /aws-lambda/aws-lambda-rie
@@ -229,8 +188,7 @@ Resources:
           Environment:
             - Name: PYTHONPATH
               Value: /function/src
-            # FileService reads both of these in __init__; unset means the
-            # bucket name is None and every transfer fails.
+            # FileService reads both in __init__; unset means every transfer fails.
             - Name: SERVICE_DELIVERY_BUCKET
               Value: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-InboundBucket'}
             - Name: SERVICE_RECEIVE_BUCKET
@@ -244,30 +202,22 @@ Resources:
 
   EcsService:
     Type: AWS::ECS::Service
-    DependsOn: Listener
     Properties:
       ServiceName: !Ref ServiceName
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 1
-      HealthCheckGracePeriodSeconds: 60
-      DeploymentConfiguration:
-        MinimumHealthyPercent: 100
-        MaximumPercent: 200
+      DesiredCount: !Ref DesiredCount
       NetworkConfiguration:
         AwsvpcConfiguration:
-          # Private subnets + NAT: tasks are not directly reachable.
-          AssignPublicIp: DISABLED
-          Subnets: !Split [',', !ImportValue {'Fn::Sub': '${BaseNetworkStack}-PrivateSubnets'}]
+          # Public subnet + public IP replaces a NAT gateway. The security
+          # group, not the subnet, is what keeps the task private.
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
           SecurityGroups: [!Ref ServiceSecurityGroup]
-      LoadBalancers:
-        - ContainerName: app
-          ContainerPort: !Ref ContainerPort
-          TargetGroupArn: !Ref TargetGroup
 
   # =========================================================================
-  # Lambda — same image, default entrypoint
+  # Lambda — same image, default entrypoint, free at demo volume
   # =========================================================================
 
   LambdaRole:
@@ -302,9 +252,13 @@ Resources:
           - Repo: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-RepositoryUri'}
 
 Outputs:
-  AlbUrl:
-    Description: Public URL of the ECS service.
-    Value: !Sub 'http://${LoadBalancer.DNSName}'
-
   LambdaFunctionName:
+    Description: Invoke with `aws lambda invoke --function-name <this>`.
     Value: !Ref LambdaFunction
+
+  ClusterName:
+    Description: Scale to 1 for a demo, back to 0 after.
+    Value: !Ref Cluster
+
+  ScaleUpCommand:
+    Value: !Sub 'aws ecs update-service --cluster ${Cluster} --service ${ServiceName} --desired-count 1'

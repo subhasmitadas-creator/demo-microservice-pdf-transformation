@@ -1,8 +1,9 @@
 name: Build, scan and deploy
 
 # Per-commit path: build the image, scan it, push it, roll the workload.
-# Networking and the registry come from the base layer — see deploy-base.yml,
-# which must have run at least once before this workflow can succeed.
+# The registry comes from the base layer — see deploy-base.yml, which must have
+# run at least once before this workflow can succeed. Networking is the
+# account's existing default VPC, not something we create.
 on:
   push:
     branches: [main]
@@ -48,12 +49,11 @@ jobs:
       # than with an opaque "No export named ..." two minutes later.
       - name: Check base layer exists
         run: |
-          for stack in "${SERVICE_NAME}-base-registry" "${SERVICE_NAME}-base-network"; do
-            if ! aws cloudformation describe-stacks --stack-name "$stack" >/dev/null 2>&1; then
-              echo "::error::Base stack '$stack' not found. Run the 'Deploy base layer' workflow first."
-              exit 1
-            fi
-          done
+          if ! aws cloudformation describe-stacks \
+               --stack-name "${SERVICE_NAME}-base-registry" >/dev/null 2>&1; then
+            echo "::error::Base stack not found. Run the 'Deploy base layer' workflow first."
+            exit 1
+          fi
 
       - name: Log in to ECR
         id: ecr
@@ -106,12 +106,6 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides ImageTag="${{ github.sha }}"
-
-      - name: Wait for the ECS service to stabilise
-        run: |
-          aws ecs wait services-stable \
-            --cluster "${SERVICE_NAME}-cluster" \
-            --services "$SERVICE_NAME"
 
       - name: Summarise
         run: |
