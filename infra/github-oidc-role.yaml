@@ -83,7 +83,24 @@ Resources:
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:DeleteChangeSet
                   - cloudformation:ListChangeSets
+                  # `aws cloudformation deploy` reads a template's parameter
+                  # list before diffing. Against an existing stack it calls
+                  # GetTemplateSummary on the stack ARN, so this must be here —
+                  # its absence only shows up on the SECOND run, once the stack
+                  # exists.
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:GetStackPolicy
                 Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ServiceName}-*/*'
+
+              - Sid: TemplateIntrospection
+                Effect: Allow
+                # Template-level, not stack-level: called with a template body
+                # rather than a stack ARN, so these cannot be resource-scoped.
+                # Both are read-only.
+                Action:
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:GetTemplateSummary
+                Resource: '*'
 
               - Sid: NetworkingEcrEcsLambda
                 Effect: Allow
