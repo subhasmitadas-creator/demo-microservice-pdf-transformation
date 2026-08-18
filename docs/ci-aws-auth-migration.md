@@ -854,6 +854,16 @@ result to the outbound bucket.
 
 ## Sources
 
+### Reference documentation
+
+| Document | Covers |
+|---|---|
+| [Bitbucket — Integrate Pipelines with resource servers using OIDC](https://support.atlassian.com/bitbucket-cloud/docs/integrate-pipelines-with-resource-servers-using-oidc/) | `oidc: true`, `BITBUCKET_STEP_OIDC_TOKEN`, the claim format — §2 |
+| [GitHub — Configuring OpenID Connect in AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws) | `id-token: write`, `sub` claim scoping, trust policy examples — §3 |
+| [AWS — Creating OIDC identity providers](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html) | the AWS side both platforms connect to — §2.3, §3.2 |
+
+### Repository sources
+
 | Source | Location |
 |---|---|
 | Pipeline definition | `bitbucket-pipelines.yml` |
