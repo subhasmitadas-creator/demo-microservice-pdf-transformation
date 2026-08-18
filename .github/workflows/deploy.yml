@@ -1,14 +1,17 @@
 name: Build, scan and deploy
 
-# Per-commit path: build the image, scan it, push it, roll the workload.
-# The registry comes from the base layer — see deploy-base.yml, which must have
-# run at least once before this workflow can succeed. Networking is the
-# account's existing default VPC, not something we create.
+# Everything, in one run: ensure the registry exists, build the image, scan it,
+# push it, then deploy the workload. Networking is the account's existing
+# default VPC, not something we create.
+#
+# The registry stack is deployed on every run rather than guarded behind a
+# separate manual workflow. It holds only an ECR repository and two buckets,
+# all Retain-on-delete, so re-deploying is a no-op changeset that costs a few
+# seconds — much cheaper than a manual step that is easy to forget.
 on:
   push:
     branches: [main]
     paths-ignore:
-      - 'infra/base/**'
       - 'docs/**'
       - '**.md'
   workflow_dispatch:
@@ -45,15 +48,15 @@ jobs:
           role-to-assume: ${{ env.OIDC_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Fail early and legibly if the base layer was never deployed, rather
-      # than with an opaque "No export named ..." two minutes later.
-      - name: Check base layer exists
+      # Creates the ECR repository and the two S3 buckets on a first run;
+      # a no-op changeset on every run after that.
+      - name: Ensure base layer (ECR + buckets)
         run: |
-          if ! aws cloudformation describe-stacks \
-               --stack-name "${SERVICE_NAME}-base-registry" >/dev/null 2>&1; then
-            echo "::error::Base stack not found. Run the 'Deploy base layer' workflow first."
-            exit 1
-          fi
+          aws cloudformation deploy \
+            --template-file infra/base/registry.yaml \
+            --stack-name "${SERVICE_NAME}-base-registry" \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ServiceName="$SERVICE_NAME"
 
       - name: Log in to ECR
         id: ecr
