@@ -110,8 +110,20 @@ jobs:
           exit-code: '1'
 
       # Only reached if the scan passed — a vulnerable image never enters ECR.
+      #
+      # The repository is ImageTagMutability: IMMUTABLE and the tag is the commit
+      # SHA, so pushing a tag that already exists is rejected. That is the
+      # guarantee working, not a fault — a tag always means exactly one image.
+      # Re-running a commit is therefore a no-op push rather than an error.
       - name: Push to ECR
-        run: docker push "$IMAGE_URI"
+        run: |
+          if aws ecr describe-images \
+               --repository-name "$SERVICE_NAME" \
+               --image-ids imageTag="${{ github.sha }}" >/dev/null 2>&1; then
+            echo "Tag ${{ github.sha }} is already in ECR — re-run of an existing commit, skipping push."
+          else
+            docker push "$IMAGE_URI"
+          fi
         env:
           IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
