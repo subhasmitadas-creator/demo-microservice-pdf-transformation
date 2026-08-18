@@ -8,10 +8,25 @@ Description: >
   references it rather than creating it.
 
 Parameters:
-  GitHubRepo:
+  GitHubOwner:
     Type: String
-    Default: subhasmitadas-creator/demo-microservice-pdf-transformation
-    Description: owner/repo exactly as it appears on GitHub.
+    Default: subhasmitadas-creator
+
+  GitHubRepoName:
+    Type: String
+    Default: demo-microservice-pdf-transformation
+
+  # GitHub now issues its OIDC subject in an "immutable identifier" form that
+  # appends the numeric owner and repository IDs, so a renamed or deleted-and-
+  # recreated repo cannot inherit the old trust. Read them from:
+  #   curl -s https://api.github.com/repos/<owner>/<repo> | jq '.id, .owner.id'
+  GitHubOwnerId:
+    Type: String
+    Default: '315350209'
+
+  GitHubRepoId:
+    Type: String
+    Default: '1337565325'
 
   ServiceName:
     Type: String
@@ -39,8 +54,15 @@ Resources:
                 # Scoped to main only. Deliberately NOT a bare `:*` wildcard,
                 # which would let any branch or PR in the repo assume this role
                 # (finding F7 against the precedent `github-actions` role).
+                #
+                # Both subject formats are listed as exact strings — no
+                # wildcards, so nothing is loosened. The first is what GitHub
+                # sends today (verified in CloudTrail); the second is the
+                # classic form, kept so this keeps working if the issuer
+                # varies by repo or reverts.
                 'token.actions.githubusercontent.com:sub':
-                  - !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
+                  - !Sub 'repo:${GitHubOwner}@${GitHubOwnerId}/${GitHubRepoName}@${GitHubRepoId}:ref:refs/heads/main'
+                  - !Sub 'repo:${GitHubOwner}/${GitHubRepoName}:ref:refs/heads/main'
       Policies:
         - PolicyName: DeployDemoStack
           PolicyDocument:
