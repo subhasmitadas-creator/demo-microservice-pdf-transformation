@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  BASE LAYER — image registry and data buckets for the pdf-transformation demo.
+
+  Everything here is Retain-on-delete and outlives any single deployment, which
+  is precisely why it does not belong in the per-commit workload stack.
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: pdf-transformation-demo
+
+Resources:
+
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Ref ServiceName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      # Commit-SHA tags are never reused, so immutability costs nothing and
+      # guarantees a tag always means one image.
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the 15 most recent images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 15
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  # SERVICE_DELIVERY_BUCKET — download_file_from_s3 reads source PDFs here.
+  InboundBucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${ServiceName}-inbound-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # SERVICE_RECEIVE_BUCKET — upload_file_to_s3 writes transformed PDFs here.
+  OutboundBucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${ServiceName}-outbound-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+Outputs:
+  RepositoryUri:
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryUri'
+
+  InboundBucket:
+    Value: !Ref InboundBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-InboundBucket'
+
+  OutboundBucket:
+    Value: !Ref OutboundBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-OutboundBucket'

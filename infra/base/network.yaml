@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  BASE LAYER — networking for the pdf-transformation demo.
+
+  Long-lived and rarely changed. Deployed by .github/workflows/deploy-base.yml,
+  not on every commit. Follows the convention in Paligo's infra-base repo
+  (infra/lib/base/vpc-base-stack.ts): a base stack publishes exports named
+  ${StackName}-<Value>, and service stacks consume them with Fn::ImportValue.
+
+  NOTE: an export cannot be changed or removed while any stack imports it.
+  Keep this list short on purpose.
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.20.0.0/16
+
+Resources:
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-vpc'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-igw'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # --- Subnets: two public (ALB, NAT), two private (tasks) ----------------
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 4, 8]]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-a'
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 4, 8]]
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-b'
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [2, !Cidr [!Ref VpcCidr, 4, 8]]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-a'
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [3, !Cidr [!Ref VpcCidr, 4, 8]]
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-b'
+
+  # --- Public routing ------------------------------------------------------
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-rt'
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # --- NAT so private tasks reach ECR, CloudWatch and S3 -------------------
+
+  NatEip:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-nat'
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-rt'
+
+  PrivateDefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+# ---------------------------------------------------------------------------
+# Exports consumed by overlays. Subnet lists are CSV strings, matching the
+# IsolatedSubnets convention in infra-base; consumers use Fn::Split.
+# ---------------------------------------------------------------------------
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcId'
+
+  PublicSubnets:
+    Value: !Join [',', [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnets'
+
+  PrivateSubnets:
+    Value: !Join [',', [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnets'

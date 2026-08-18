@@ -1,0 +1,124 @@
+name: Build, scan and deploy
+
+# Per-commit path: build the image, scan it, push it, roll the workload.
+# Networking and the registry come from the base layer — see deploy-base.yml,
+# which must have run at least once before this workflow can succeed.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'infra/base/**'
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write         # required to request the OIDC token
+  contents: read
+  security-events: write  # to upload Trivy results to code scanning
+
+env:
+  AWS_REGION: eu-west-1
+  SERVICE_NAME: pdf-transformation-demo
+  STACK_NAME: pdf-transformation-demo-workload
+  OVERLAY: infra/overlays/playground
+  OIDC_ROLE: arn:aws:iam::230763337748:role/GithubActionsOidc-pdf-transformation-demo
+
+jobs:
+  deploy:
+    name: Deploy to playground
+    # arm64 runner: the image is built for linux/arm64 to match Fargate's
+    # RuntimePlatform and Lambda's arm64 architecture. Building on x86 would
+    # need QEMU emulation and take far longer.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.OIDC_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Fail early and legibly if the base layer was never deployed, rather
+      # than with an opaque "No export named ..." two minutes later.
+      - name: Check base layer exists
+        run: |
+          for stack in "${SERVICE_NAME}-base-registry" "${SERVICE_NAME}-base-network"; do
+            if ! aws cloudformation describe-stacks --stack-name "$stack" >/dev/null 2>&1; then
+              echo "::error::Base stack '$stack' not found. Run the 'Deploy base layer' workflow first."
+              exit 1
+            fi
+          done
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        run: docker build -f deploy/Dockerfile -t "$IMAGE_URI" --platform linux/arm64 .
+        env:
+          IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          # exit-code stays 0 so the SARIF upload always runs; the gate is the
+          # separate step below.
+          exit-code: '0'
+
+      - name: Upload Trivy results to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      - name: Fail on HIGH or CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      # Only reached if the scan passed — a vulnerable image never enters ECR.
+      - name: Push to ECR
+        run: docker push "$IMAGE_URI"
+        env:
+          IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+      - name: Deploy overlay (ECS service and Lambda)
+        run: |
+          aws cloudformation deploy \
+            --template-file "$OVERLAY/workload.yaml" \
+            --stack-name "$STACK_NAME" \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ImageTag="${{ github.sha }}"
+
+      - name: Wait for the ECS service to stabilise
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${SERVICE_NAME}-cluster" \
+            --services "$SERVICE_NAME"
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Deployed \`${{ github.sha }}\`"
+            echo
+            aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+              --query 'Stacks[0].Outputs[].[OutputKey,OutputValue]' --output text \
+              | awk -F'\t' 'BEGIN{print "| Output | Value |"; print "|---|---|"} {print "| "$1" | "$2" |"}'
+          } >> "$GITHUB_STEP_SUMMARY"

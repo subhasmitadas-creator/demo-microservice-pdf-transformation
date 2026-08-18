@@ -1,0 +1,310 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  OVERLAY — the pdf-transformation workload for the Paligo playground account.
+
+  Deployed on every commit. Owns only things that change with the code: the
+  ALB, the ECS service, the Lambda and their IAM. Networking and the registry
+  come from the base layer via Fn::ImportValue.
+
+  Adding another environment means another directory under infra/overlays/,
+  not another copy of this template — only the parameter values differ.
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: pdf-transformation-demo
+
+  ImageTag:
+    Type: String
+    Description: Commit SHA, passed by the pipeline.
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: >
+      Port the Lambda Runtime Interface Emulator binds inside the ECS task.
+      Unused by Lambda, which talks to the real Runtime API.
+
+  BaseNetworkStack:
+    Type: String
+    Default: pdf-transformation-demo-base-network
+
+  BaseRegistryStack:
+    Type: String
+    Default: pdf-transformation-demo-base-registry
+
+Resources:
+
+  # =========================================================================
+  # Security groups
+  # =========================================================================
+
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Public ingress to the ${ServiceName} ALB'
+      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from anywhere (demo only — no TLS listener)
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'ALB-only ingress to ${ServiceName} tasks'
+      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerPort
+          ToPort: !Ref ContainerPort
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+          Description: Only the ALB may reach the container port
+
+  # =========================================================================
+  # Load balancer
+  # =========================================================================
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ServiceName}-alb'
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups: [!Ref AlbSecurityGroup]
+      Subnets: !Split [',', !ImportValue {'Fn::Sub': '${BaseNetworkStack}-PublicSubnets'}]
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${ServiceName}-tg'
+      VpcId: !ImportValue {'Fn::Sub': '${BaseNetworkStack}-VpcId'}
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetType: ip
+      # RIE exposes exactly one route and rejects GET on it. This health check
+      # asserts "the emulator is listening", not "the handler works" —
+      # accepting 4xx is deliberate, not an oversight.
+      HealthCheckPath: /2015-03-31/functions/function/invocations
+      Matcher:
+        HttpCode: '200-499'
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '15'
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # =========================================================================
+  # Shared IAM — one policy, both runtimes
+  # =========================================================================
+
+  # The ECS task and the Lambda run the identical handler, so they get
+  # identical S3 permissions and nothing more.
+  S3AccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Read source PDFs from the inbound bucket, write results to outbound.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadSourceObjects
+            Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub
+              - 'arn:aws:s3:::${Bucket}/*'
+              - Bucket: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-InboundBucket'}
+
+          - Sid: WriteTransformedObjects
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              # boto3's managed upload_file falls back to multipart for large
+              # PDFs and needs to be able to abandon a failed part.
+              - s3:AbortMultipartUpload
+            Resource: !Sub
+              - 'arn:aws:s3:::${Bucket}/*'
+              - Bucket: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-OutboundBucket'}
+
+          - Sid: ListForClearErrors
+            Effect: Allow
+            # Without ListBucket a missing key returns 403 instead of 404,
+            # which makes S3DownloadFailedError impossible to diagnose.
+            Action: s3:ListBucket
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${Bucket}'
+                - Bucket: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-InboundBucket'}
+              - !Sub
+                - 'arn:aws:s3:::${Bucket}'
+                - Bucket: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-OutboundBucket'}
+
+  # =========================================================================
+  # ECS
+  # =========================================================================
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${ServiceName}'
+      RetentionInDays: 14
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ServiceName}-cluster'
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref S3AccessPolicy
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref ServiceName
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: '1024'
+      Memory: '2048'
+      # The image is built --platform linux/arm64, so Fargate must match.
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: app
+          Image: !Sub
+            - '${Repo}:${ImageTag}'
+            - Repo: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-RepositoryUri'}
+          # Prepend the Runtime Interface Emulator to the image's own
+          # entrypoint. RIE exposes the unchanged handler over HTTP, so no
+          # application code differs between the Lambda and ECS paths.
+          EntryPoint:
+            - /aws-lambda/aws-lambda-rie
+            - poetry
+            - run
+            - python
+            - -m
+            - awslambdaric
+          Command: ['src/main.handler']
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: PYTHONPATH
+              Value: /function/src
+            # FileService reads both of these in __init__; unset means the
+            # bucket name is None and every transfer fails.
+            - Name: SERVICE_DELIVERY_BUCKET
+              Value: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-InboundBucket'}
+            - Name: SERVICE_RECEIVE_BUCKET
+              Value: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-OutboundBucket'}
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      ServiceName: !Ref ServiceName
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          # Private subnets + NAT: tasks are not directly reachable.
+          AssignPublicIp: DISABLED
+          Subnets: !Split [',', !ImportValue {'Fn::Sub': '${BaseNetworkStack}-PrivateSubnets'}]
+          SecurityGroups: [!Ref ServiceSecurityGroup]
+      LoadBalancers:
+        - ContainerName: app
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+
+  # =========================================================================
+  # Lambda — same image, default entrypoint
+  # =========================================================================
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Ref S3AccessPolicy
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref ServiceName
+      PackageType: Image
+      Architectures: [arm64]
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 60
+      MemorySize: 2048
+      Environment:
+        Variables:
+          SERVICE_DELIVERY_BUCKET: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-InboundBucket'}
+          SERVICE_RECEIVE_BUCKET: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-OutboundBucket'}
+      Code:
+        ImageUri: !Sub
+          - '${Repo}:${ImageTag}'
+          - Repo: !ImportValue {'Fn::Sub': '${BaseRegistryStack}-RepositoryUri'}
+
+Outputs:
+  AlbUrl:
+    Description: Public URL of the ECS service.
+    Value: !Sub 'http://${LoadBalancer.DNSName}'
+
+  LambdaFunctionName:
+    Value: !Ref LambdaFunction

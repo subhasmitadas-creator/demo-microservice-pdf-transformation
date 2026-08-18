@@ -1,0 +1,33 @@
+{
+  // CloudFormation's short-form intrinsics are custom YAML tags. Without this
+  // list, redhat.vscode-yaml reports every !Ref / !Sub / !ImportValue as an
+  // unknown tag and the templates show as solid errors.
+  //
+  // Each entry declares the tag AND the node kind it may wrap — a tag used in
+  // a form not listed here is still flagged. Both forms are declared for the
+  // intrinsics this repo uses in more than one shape.
+  "yaml.customTags": [
+    "!Ref scalar",
+    "!Sub scalar",
+    "!Sub sequence",
+    "!GetAtt scalar",
+    "!GetAtt sequence",
+    "!ImportValue scalar",
+    "!ImportValue mapping",
+    "!Select sequence",
+    "!Split sequence",
+    "!Join sequence",
+    "!Cidr sequence",
+    "!GetAZs scalar",
+    "!FindInMap sequence",
+    "!Base64 scalar",
+    "!Base64 mapping",
+    "!Equals sequence",
+    "!If sequence",
+    "!Not sequence",
+    "!And sequence",
+    "!Or sequence",
+    "!Condition scalar",
+    "!Transform mapping"
+  ]
+}

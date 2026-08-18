@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Bootstrap: the role GitHub Actions assumes in the Paligo playground account
+  (230763337748). Deploy this ONCE, by hand, with credentials that already have
+  IAM write access. The pipeline cannot create its own trust anchor.
+
+  The GitHub OIDC provider already exists in this account, so this template
+  references it rather than creating it.
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Default: subhasmitadas-creator/demo-microservice-pdf-transformation
+    Description: owner/repo exactly as it appears on GitHub.
+
+  ServiceName:
+    Type: String
+    Default: pdf-transformation-demo
+
+Resources:
+  GithubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'GithubActionsOidc-${ServiceName}'
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                # Checking aud as well as sub — omitting it is a finding (F3)
+                # against the existing Bitbucket roles.
+                'token.actions.githubusercontent.com:aud': sts.amazonaws.com
+              StringLike:
+                # Scoped to main only. Deliberately NOT a bare `:*` wildcard,
+                # which would let any branch or PR in the repo assume this role
+                # (finding F7 against the precedent `github-actions` role).
+                'token.actions.githubusercontent.com:sub':
+                  - !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
+      Policies:
+        - PolicyName: DeployDemoStack
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: CloudFormationStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplate
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:ListChangeSets
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ServiceName}-*/*'
+
+              - Sid: NetworkingEcrEcsLambda
+                Effect: Allow
+                Action:
+                  - 'ec2:*'
+                  - 'ecr:*'
+                  - 'ecs:*'
+                  - 'elasticloadbalancing:*'
+                  - 'logs:*'
+                  - 'lambda:*'
+                # These services are largely not resource-scopable for create
+                # operations (a VPC has no ARN before it exists), which is why
+                # this is broad. It is acceptable in playground and NOT
+                # acceptable in staging or production — see the note in
+                # deploy/README.md before reusing this shape.
+                Resource: '*'
+
+              - Sid: ManageServiceBuckets
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:GetBucketLocation
+                  - s3:GetBucketPolicy
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutBucketTagging
+                # Name-scoped: the pipeline cannot touch any other bucket in
+                # the account, including the real microservice-inbound/outbound.
+                Resource: !Sub 'arn:aws:s3:::${ServiceName}-*'
+
+              - Sid: ManageStackManagedPolicies
+                Effect: Allow
+                Action:
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:TagPolicy
+                # CloudFormation names generated policies after the stack, so
+                # the same prefix bound as the roles applies.
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:policy/${ServiceName}-*'
+
+              - Sid: PassRolesToServices
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ServiceName}-*'
+                Condition:
+                  StringEquals:
+                    'iam:PassedToService':
+                      - ecs-tasks.amazonaws.com
+                      - lambda.amazonaws.com
+
+              - Sid: ManageStackRolesOnly
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:TagRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                # Name-scoped so the pipeline cannot create or modify roles
+                # outside its own stack. Without this bound, iam:CreateRole plus
+                # iam:AttachRolePolicy is a straightforward path to admin.
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ServiceName}-*'
+
+Outputs:
+  RoleArn:
+    Description: Put this in the OIDC_ROLE env var of .github/workflows/deploy.yml
+    Value: !GetAtt GithubActionsRole.Arn
